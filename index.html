@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Drug Review Sentiment Analyser</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#F6F8F7; --panel:#FFFFFF; --ink:#17313B; --muted:#52666D; --rule:#D5DEDC; --tint:#E9EFED;
+  --pos:#2F7D5C; --neg:#B0443B; --neu:#8E6A14; --accent:#17313B; --on-accent:#FFFFFF;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1A1E; --panel:#16252A; --ink:#E4EEEC; --muted:#9CB0B5; --rule:#2B3F45; --tint:#1C2E34;
+    --pos:#5BBE95; --neg:#E5796F; --neu:#E0B45A; --accent:#E4EEEC; --on-accent:#0F1A1E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1A1E; --panel:#16252A; --ink:#E4EEEC; --muted:#9CB0B5; --rule:#2B3F45; --tint:#1C2E34;
+  --pos:#5BBE95; --neg:#E5796F; --neu:#E0B45A; --accent:#E4EEEC; --on-accent:#0F1A1E;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 'IBM Plex Sans',system-ui,-apple-system,Segoe UI,sans-serif}
+h1,h2,h3{font-family:'IBM Plex Serif',Georgia,serif;font-weight:600;letter-spacing:-.01em;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding:1.6rem 1rem 3rem}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1.2rem}
+header h1{font-size:clamp(1.6rem,4vw,2.2rem);line-height:1.15}
+header p{margin:.35rem 0 0;color:var(--muted);max-width:44rem}
+.chip{display:inline-block;font-size:.85rem;border:1px solid var(--rule);background:var(--panel);padding:.25rem .65rem;border-radius:999px}
+.banner{border:1px solid var(--neu);background:color-mix(in srgb,var(--neu) 12%,transparent);padding:.7rem 1rem;margin-bottom:1rem;font-size:.92rem}
+.banner[hidden]{display:none}
+.bar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+label.f{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:.2rem}
+select,input[type=text],textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--rule);padding:.5rem .65rem;border-radius:3px;max-width:100%}
+textarea{width:100%;min-height:9rem;resize:vertical;line-height:1.5}
+button{font:inherit;cursor:pointer;border-radius:3px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:.45rem .8rem}
+button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:500;padding:.55rem 1.1rem}
+button:hover{border-color:var(--ink)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--rule);margin:1.2rem 0 1.4rem;overflow-x:auto}
+.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:.6rem .9rem;color:var(--muted);white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+section[hidden]{display:none}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0 1rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.verdict{border-left:6px solid var(--c);padding:.2rem 0 .2rem 1rem;margin:.2rem 0 1.1rem}
+.verdict .w{font-family:'IBM Plex Serif',Georgia,serif;font-size:clamp(2rem,6vw,2.8rem);font-weight:600;line-height:1.1;color:var(--c)}
+.verdict .n{color:var(--muted);font-size:.92rem}
+.br{display:flex;align-items:center;gap:.7rem;margin:.4rem 0}
+.br .nm{width:5.2rem}.br .tr{flex:1;height:.7rem;background:var(--tint);border-radius:2px;overflow:hidden}
+.br .fl{height:100%;background:var(--c)}.br .v{width:3.2rem;text-align:right;font-variant-numeric:tabular-nums}
+.marked{background:var(--panel);border:1px solid var(--rule);padding:1rem 1.2rem;line-height:1.9}
+.marked mark{background:color-mix(in srgb,var(--c) var(--s),transparent);color:inherit;padding:.05rem .12rem;border-radius:2px}
+.marked u{text-decoration:underline dotted var(--muted);text-underline-offset:3px}
+.small{font-size:.88rem;color:var(--muted)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.93rem;background:var(--panel)}
+th,td{border:1px solid var(--rule);padding:.4rem .6rem;text-align:left;vertical-align:top}
+th{background:var(--tint);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{font-weight:600}
+.pill.positive{color:var(--pos)}.pill.negative{color:var(--neg)}.pill.neutral{color:var(--neu)}
+.notice{border:1px solid var(--rule);background:var(--tint);padding:.7rem 1rem;font-size:.9rem;margin-top:1.6rem}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1rem 0}
+.metric{background:var(--panel);border:1px solid var(--rule);padding:.8rem 1rem}
+.metric b{display:block;font-family:'IBM Plex Serif',Georgia,serif;font-size:1.9rem;line-height:1.1}
+.stack{display:flex;height:1.1rem;background:var(--tint);min-width:8rem}
+.stack i{display:block;height:100%}
+.cm td{text-align:center;min-width:4.2rem;background:color-mix(in srgb,var(--ink) var(--s),transparent)}
+.mb{margin:.5rem 0 1.4rem}.mb .l{display:flex;align-items:center;gap:.6rem;font-size:.9rem}
+.mb .l span.a{width:6.5rem;color:var(--muted)}.mb .l .t{flex:1;height:.6rem;background:var(--tint)}.mb .l .t i{display:block;height:100%;background:var(--ink)}
+.drop{border:1px dashed var(--muted);padding:1.2rem;text-align:center;background:var(--panel)}
+.drop.over{border-color:var(--ink);background:var(--tint)}
+h2{font-size:1.25rem;margin:1.6rem 0 .6rem}
+
+.scale td,.scale th{text-align:center}.scale td:first-child,.scale th:first-child{text-align:left}
+.scale input[type=radio]{width:1.35rem;height:1.35rem;accent-color:var(--accent);cursor:pointer}
+.fb-hint{font-size:.9rem;color:var(--muted);margin:.4rem 0 1rem}
+.fb-ok{border:1px solid var(--pos);background:color-mix(in srgb,var(--pos) 12%,transparent);padding:.8rem 1rem;margin-top:1rem}
+.fb-err{border:1px solid var(--neg);background:color-mix(in srgb,var(--neg) 10%,transparent);padding:.8rem 1rem;margin-top:1rem}
+.fb-err[hidden],.fb-ok[hidden]{display:none}
+textarea.mono{font:.85rem/1.4 ui-monospace,Consolas,monospace;min-height:5rem}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Drug Review Sentiment Analyser</h1>
+      <p>Paste a patient's drug review. See whether the opinion is positive, negative or neutral, and which words led there.</p>
+    </div>
+    <span class="chip" id="source-chip">Loading model…</span>
+  </header>
+
+  <div class="banner" id="demo-banner" hidden>
+    <b>Preview model.</b> This page is running a small model trained on a made-up sample so you can see how the app works.
+    It is not your trained model and its results are not your results. Load <code>web_bundle.json</code> from your own run to use your model:
+    <button id="load-btn" style="margin-left:.5rem">Load web_bundle.json</button>
+    <input type="file" id="bundle-file" accept=".json" hidden>
+  </div>
+
+  <div class="bar">
+    <label class="f">Model
+      <select id="model-select"></select>
+    </label>
+    <span class="small" id="model-note"></span>
+  </div>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" aria-selected="true" data-tab="one">One review</button>
+    <button role="tab" aria-selected="false" data-tab="many">Many reviews</button>
+    <button role="tab" aria-selected="false" data-tab="results">Model results</button>
+    <button role="tab" aria-selected="false" data-tab="tests">Test cases</button>
+    <button role="tab" aria-selected="false" data-tab="feedback">Rate this tool</button>
+  </div>
+
+  <!-- one review -->
+  <section id="tab-one">
+    <div class="small">Try an example</div>
+    <div class="row" id="examples"></div>
+    <textarea id="review" placeholder="For example: The tablets stopped my migraines but I felt sick every morning." aria-label="Drug review"></textarea>
+    <div class="row"><button class="primary" id="analyse">Analyse sentiment</button><span class="small" id="one-msg"></span></div>
+    <div id="one-out"></div>
+  </section>
+
+  <!-- many reviews -->
+  <section id="tab-many" hidden>
+    <p>Upload a file of reviews to see how patients feel about each drug. The UCI Druglib <code>.tsv</code> files work as they are. The file is read in your browser and is not uploaded anywhere.</p>
+    <div class="drop" id="drop">Drop a CSV or TSV file here, or <button id="pick">choose a file</button>
+      <input type="file" id="data-file" accept=".csv,.tsv,.txt" hidden></div>
+    <div id="many-setup"></div>
+    <div id="many-out"></div>
+  </section>
+
+  <!-- results -->
+  <section id="tab-results" hidden><div id="results-out"></div></section>
+
+  <!-- tests -->
+  <section id="tab-tests" hidden>
+    <p>The five test reviews of Table 4.10, run through every classical model in this page.</p>
+    <div class="scroll" id="tests-out"></div>
+    <div class="row"><button id="dl-tests">Download test cases (CSV)</button></div>
+  </section>
+
+  <!-- feedback -->
+  <section id="tab-feedback" hidden>
+    <h2 style="margin-top:0">Rate this tool</h2>
+    <p>Please try the tool first (One review, then Many reviews), then answer below. It takes about two minutes. Your answers are anonymous and are used only for a final-year project at Obafemi Awolowo University. Do not type any personal or medical details.</p>
+    <form id="fb-form" novalidate>
+      <label class="f" style="max-width:22rem">I am a
+        <select id="fb-role"><option value="">Choose one</option><option>Student</option><option>Pharmacist or other health worker</option><option>Researcher or lecturer</option><option>Other</option></select>
+      </label>
+      <div class="fb-hint">Rate each statement from 1 (strongly disagree) to 5 (strongly agree).</div>
+      <div class="scroll"><table class="scale" id="fb-table"></table></div>
+      <label class="f" style="margin-top:1rem">What should be improved? (optional)
+        <textarea id="fb-comment" maxlength="600" placeholder="Your comment"></textarea>
+      </label>
+      <div class="row"><button type="submit" class="primary" id="fb-send">Send my ratings</button><span class="small" id="fb-msg"></span></div>
+    </form>
+    <div class="fb-ok" id="fb-ok" hidden><b>Thank you.</b> Your ratings were sent.</div>
+    <div class="fb-err" id="fb-err" hidden><b>Your ratings could not be sent from this page.</b> Please copy the text below and send it to the researcher.
+      <textarea class="mono" id="fb-backup" readonly></textarea>
+      <div class="row"><button type="button" id="fb-copy">Copy my answers</button></div></div>
+  </section>
+
+  <div class="notice">This tool classifies the opinion written in a review. It is a research aid and <b>not medical advice</b>.
+    One patient's opinion is not evidence of how safe or effective a drug is.</div>
+</div>
+
+
+<!-- Netlify Forms reads this static copy when the site is deployed on Netlify -->
+<form name="feedback" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="hidden" name="form-name" value="feedback"><input name="bot-field">
+  <input name="role"><input name="ease"><input name="clarity"><input name="useful"><input name="transparency"><input name="speed"><input name="satisfaction">
+  <textarea name="comment"></textarea><input name="model_in_use">
+</form>
+
+<script id="demo-bundle" type="application/json">{"meta":{"dataset":"Preview","best_model":"Logistic Regression","n_records":0},"stop_words":["a","about","above","across","after","afterwards","again","against","all","almost","alone","along","already","also","although","always","am","among","amongst","amoungst","amount","an","and","another","any","anyhow","anyone","anything","anyway","anywhere","are","around","as","at","back","be","became","because","become","becomes","becoming","been","before","beforehand","behind","being","below","beside","besides","between","beyond","bill","both","bottom","but","by","call","can","cant","co","con","could","couldnt","cry","d","de","describe","detail","do","done","down","due","during","each","eg","eight","either","eleven","else","elsewhere","empty","enough","etc","even","ever","every","everyone","everything","everywhere","except","few","fifteen","fifty","fill","find","fire","first","five","for","former","formerly","forty","found","four","from","front","full","further","get","give","go","had","has","hasnt","have","he","hence","her","here","hereafter","hereby","herein","hereupon","hers","herself","him","himself","his","how","however","hundred","i","ie","if","in","inc","indeed","interest","into","is","it","its","itself","keep","last","latter","latterly","least","less","ll","ltd","m","made","many","may","me","meanwhile","might","mill","mine","more","moreover","most","mostly","move","much","must","my","myself","name","namely","nevertheless","next","nine","noone","now","nowhere","of","off","often","on","once","one","only","onto","or","other","others","otherwise","our","ours","ourselves","out","over","own","part","per","perhaps","please","put","rather","re","s","same","see","seem","seemed","seeming","seems","serious","several","she","should","show","since","sincere","six","sixty","so","some","somehow","someone","something","sometime","sometimes","somewhere","still","such","system","t","take","ten","than","that","the","their","them","themselves","then","thence","there","thereafter","thereby","therefore","therein","thereupon","these","they","thick","thin","third","this","those","though","three","through","throughout","thru","thus","to","together","too","top","toward","towards","twelve","twenty","two","un","under","until","up","upon","us","ve","very","via","was","we","well","were","what","whatever","when","whence","whenever","where","whereafter","whereas","whereby","wherein","whereupon","wherever","whether","which","while","whither","who","whoever","whole","whom","whose","why","will","with","within","would","yet","you","your","yours","yourself","yourselves"],"vocab":["10","10 months","11","11 months","12","12 months","average","average not","away","away days","awful","awful side","best","best treatment","better","better best","better effective","better helped","better medicine","better no","better relief","better symptoms","better used","better worked","better works","caused","caused nausea","changed","changed did","changed feel","changed not","changed severe","changed stop","changed terrible","changed used","changed waste","completely","completely best","completely effective","completely helped","completely medicine","completely no","completely relief","completely symptoms","completely used","completely worked","completely works","day","day awful","day did","day feel","day not","day severe","day stop","day terrible","day used","day waste","days","days average","days best","days did","days effective","days fine","days helped","days mixed","days no","days okay","days relief","days slight","days symptoms","days used","days worked","days works","did","did not","dizzy","dizzy nauseous","dizzy tired","drug","drug dizzy","easy","easy best","easy effective","easy helped","easy medicine","easy no","easy relief","easy symptoms","easy used","easy works","effective","effective did","effective easy","effects","effects best","effects effective","effects headaches","effects helped","effects medicine","effects mild","effects no","effects relief","effects symptoms","effects used","effects worked","effects works","feel","feel better","feel tired","feel worse","felt","felt sick","fine","fine nothing","gone","gone feel","great","great best","great effective","great helped","great medicine","great no","great not","great symptoms","great used","great worked","great works","headaches","headaches day","help","help awful","help did","help feel","help not","help severe","help stop","help used","help waste","helped","helped little","helped pain","helped sleep","improvement","improvement month","improvement nothing","lasting","lasting effective","lasting helped","lasting medicine","lasting no","lasting relief","lasting symptoms","lasting used","lasting worked","little","little not","medicine","medicine relieved","mild","mild average","mild fine","mild helped","mild mixed","mild relief","mild slight","mild used","mixed","mixed results","money","money nothing","month","month average","month did","month fine","month helped","month mixed","month okay","month relief","month slight","month used","months","nausea","nausea average","nausea awful","nausea did","nausea feel","nausea helped","nausea medicine","nausea no","nausea not","nausea okay","nausea relief","nausea severe","nausea symptoms","nausea terrible","nausea vomiting","nausea waste","nausea worked","nauseous","nauseous awful","nauseous did","nauseous feel","nauseous not","nauseous severe","nauseous stop","nauseous terrible","nauseous used","nauseous waste","no","no problems","no side","not","not average","not did","not effective","not fine","not great","not help","not helped","not mixed","not okay","not recommend","not relief","not sleep","not sure","not terrible","not used","not work","nothing","nothing changed","nothing special","okay","okay improvement","pain","pain caused","pain completely","pain dizzy","pain gone","problems","problems feel","quick","quick lasting","recommend","recommend awful","recommend effective","recommend feel","recommend helped","recommend medicine","recommend no","recommend not","recommend relief","recommend severe","recommend symptoms","recommend terrible","recommend used","recommend waste","recommend worked","recommend works","relief","relief quick","relief side","relieved","relieved pain","results","results works","severe","severe nausea","sick","sick awful","sick did","sick feel","sick not","sick severe","sick stop","sick terrible","sick used","sick waste","side","side effects","sleep","sleep best","sleep effective","sleep felt","sleep medicine","sleep no","sleep relief","sleep used","sleep worked","sleep works","slight","slight improvement","special","special average","special did","special fine","special helped","special mixed","special okay","special relief","special slight","special used","stop","stop taking","sure","sure average","sure fine","sure helped","sure mixed","sure okay","sure used","symptoms","symptoms went","taking","taking awful","taking did","taking feel","taking not","taking severe","taking stop","taking terrible","taking used","terrible","terrible average","terrible did","terrible drug","terrible fine","terrible helped","terrible mixed","terrible okay","terrible relief","terrible slight","terrible used","tired","tired did","tired effective","tired feel","tired fine","tired helped","tired medicine","tired no","tired not","tired okay","tired relief","tired severe","tired slight","tired stop","tired symptoms","tired terrible","tired waste","tired worked","tired works","treatment","treatment tried","tried","tried best","tried effective","tried helped","tried medicine","tried no","tried relief","tried symptoms","tried used","tried worked","used","used 10","used 11","used 12","used months","vomiting","vomiting awful","vomiting did","vomiting feel","vomiting not","vomiting severe","vomiting stop","vomiting terrible","vomiting used","vomiting waste","waste","waste money","went","went away","work","work awful","work did","work feel","work not","work severe","work stop","work terrible","work used","work waste","worked","worked great","worked pain","works","works days","works recommend","worse","worse awful","worse did","worse feel","worse not","worse severe","worse stop","worse terrible","worse used","worse waste"],"idf":[3.4979,3.4979,3.4508,3.4508,3.5347,3.5347,3.8058,3.8058,3.7578,3.7578,3.7271,3.7271,3.7896,3.7896,3.5992,6.3073,6.3073,6.125,6.8181,5.8373,6.8181,6.125,4.179,6.125,6.8181,4.0666,4.0666,3.6126,5.9708,6.8181,5.2087,6.3073,6.125,5.7195,4.3904,6.5304,3.6972,6.3073,6.3073,6.125,6.5304,6.8181,6.8181,6.3073,4.2031,6.5304,6.5304,3.7271,6.3073,6.125,6.5304,5.5188,6.8181,6.5304,6.8181,4.3058,6.3073,3.1376,6.125,6.5304,6.5304,6.8181,6.8181,5.8373,6.5304,5.7195,6.125,5.7195,6.5304,6.8181,3.712,6.5304,6.5304,2.7072,2.7072,3.0804,3.51,4.0249,3.51,3.51,3.6263,6.3073,6.8181,6.125,6.3073,5.6141,6.125,6.3073,4.2791,6.5304,2.9061,3.56,3.6263,2.7987,6.5304,6.5304,3.7271,6.5304,6.3073,4.2278,6.3073,6.3073,6.5304,4.3904,6.5304,6.3073,2.6803,3.5992,4.2278,3.5473,3.5992,3.5992,4.0047,4.0047,4.2278,4.2278,2.9967,5.9708,6.8181,6.125,6.5304,5.8373,3.8058,6.5304,4.1325,6.5304,5.9708,3.7271,3.7271,3.56,6.5304,6.8181,6.125,5.8373,6.8181,6.5304,3.9277,6.5304,2.7462,3.9464,4.0666,3.5223,3.4169,4.0455,4.0047,3.8224,6.125,6.125,6.5304,5.7195,6.8181,6.3073,4.5155,6.5304,3.9464,3.9464,3.6972,3.6972,4.2278,6.8181,6.5304,5.9708,6.5304,6.8181,6.8181,4.7812,3.8914,3.8914,3.6126,3.6126,4.0455,6.3073,6.5304,6.3073,6.8181,5.9708,6.3073,6.5304,6.8181,4.8257,1.0,3.1376,6.8181,6.8181,6.5304,6.3073,6.5304,6.5304,6.8181,6.125,6.8181,6.8181,6.8181,6.8181,6.3073,3.5992,6.8181,6.8181,3.51,5.9708,6.5304,6.125,5.3518,6.3073,6.5304,6.8181,4.0881,6.5304,3.0415,3.5992,3.7736,1.9635,6.125,6.8181,3.56,6.125,3.8058,3.56,6.8181,5.9708,6.8181,3.64,6.8181,3.5992,4.1325,3.8058,4.4827,3.6682,2.7987,3.6126,3.3734,4.0047,4.0047,2.654,4.0666,3.6972,4.0249,4.2278,3.5992,3.5992,3.8224,3.8224,3.0189,5.9708,6.5304,6.3073,6.3073,6.125,6.125,5.5188,6.5304,5.9708,6.8181,6.5304,3.5992,6.3073,6.3073,6.5304,3.3216,3.8224,4.2278,3.6972,3.6972,3.8914,3.8914,3.5992,3.5992,3.5992,6.5304,6.125,6.8181,5.0835,6.5304,6.5304,6.125,4.2791,6.3073,2.7987,2.7987,2.8733,6.8181,6.3073,3.5992,6.125,5.7195,6.8181,4.0249,6.3073,5.8373,4.0455,4.0455,3.3734,5.7195,5.8373,6.125,6.3073,6.8181,6.3073,6.3073,6.125,3.7578,3.64,3.64,4.1325,6.8181,6.125,6.5304,6.125,6.3073,4.7812,3.7578,3.7578,3.64,6.8181,6.3073,6.5304,5.2777,6.3073,6.125,6.3073,4.2031,2.9609,6.3073,6.8181,3.51,6.3073,6.3073,6.3073,6.125,6.5304,6.125,4.3904,3.4394,6.3073,6.5304,6.3073,6.5304,5.6141,6.125,5.8373,5.6141,6.125,6.8181,6.5304,6.8181,6.125,6.3073,5.9708,6.5304,5.7195,6.8181,3.7896,3.7896,3.7896,6.8181,6.3073,6.125,6.5304,5.8373,6.5304,6.5304,4.4202,6.3073,1.0,3.4979,3.4508,3.5347,1.2808,3.5992,6.8181,6.125,6.5304,5.7195,5.8373,6.5304,5.9708,4.0881,6.8181,3.6126,3.6126,3.7578,3.7578,3.6682,6.8181,6.3073,6.5304,5.3518,6.3073,6.8181,6.8181,4.1555,6.8181,3.1292,3.5729,4.0249,3.146,3.8914,3.7736,3.5473,6.3073,6.5304,6.125,5.2777,6.3073,5.8373,6.8181,4.1325,6.8181],"models":{"Naive Bayes":{"kind":"nb","classes":["negative","neutral","positive"],"log_prior":[-0.8923,-1.5176,-0.9915],"feature_log_prob":[[-5.358,-5.358,-5.3334,-5.3334,-5.2444,-5.2444,-7.5806,-7.5806,-7.5806,-7.5806,-4.7382,-4.7382,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-5.6351,-5.6351,-4.6198,-6.3161,-6.8872,-5.7676,-6.5692,-6.4128,-6.1855,-5.2315,-6.8439,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.7382,-6.7414,-6.4564,-6.715,-6.0547,-6.9447,-6.7546,-6.9769,-5.1925,-6.6527,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.1964,-4.1964,-4.4977,-4.5513,-5.7954,-4.5513,-4.5513,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.7687,-4.5769,-7.5806,-5.0055,-7.5806,-7.5806,-4.7382,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.5709,-7.5806,-5.9723,-4.4281,-4.5667,-4.5667,-7.5806,-7.5806,-5.9723,-5.9723,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.7382,-4.7382,-4.5769,-6.7931,-6.9377,-6.4079,-6.2804,-6.9213,-6.7106,-4.8459,-6.7717,-5.9612,-7.5806,-5.6351,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.6198,-4.6198,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.1613,-4.4361,-7.5806,-6.9731,-6.7107,-6.5422,-7.5806,-7.5806,-7.5806,-6.4717,-7.5806,-7.5806,-6.9368,-7.5806,-6.6127,-4.5212,-6.9551,-7.5806,-4.5513,-6.4122,-6.6945,-6.3982,-5.8624,-6.584,-6.7031,-7.0086,-4.9829,-6.7793,-7.5806,-7.5806,-7.5806,-3.6993,-7.5806,-7.5806,-4.5769,-7.5806,-7.5806,-4.5769,-7.5806,-7.5806,-7.5806,-4.4745,-7.5806,-4.5667,-7.5806,-7.5806,-7.5806,-4.5643,-4.8602,-4.6198,-7.5806,-7.5806,-7.5806,-5.211,-5.6351,-7.5806,-5.7954,-5.9723,-7.5806,-7.5806,-7.5806,-7.5806,-4.6524,-6.3312,-7.5806,-6.4039,-7.5806,-7.5806,-7.5806,-5.9048,-7.5806,-6.2241,-7.5806,-6.6979,-5.0549,-6.5423,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.5212,-4.5212,-4.5667,-6.7848,-6.4111,-6.8965,-5.6632,-6.7289,-6.6813,-6.4622,-5.0888,-6.5951,-5.0055,-5.0055,-4.7796,-7.5806,-7.5806,-4.5667,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.4906,-4.4906,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.4906,-6.9234,-6.4706,-6.5936,-5.7012,-6.5023,-6.3898,-6.5222,-4.9553,-4.7125,-7.5806,-7.5806,-4.5513,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-5.4419,-7.2062,-7.5806,-6.571,-7.5806,-7.5806,-7.5806,-7.5806,-6.083,-7.5806,-7.5806,-6.7553,-7.5806,-6.4099,-7.5806,-6.3706,-6.7775,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-7.5806,-4.1613,-5.358,-5.3334,-5.2444,-4.2029,-4.5212,-6.9465,-6.3753,-6.6596,-6.0816,-6.2972,-6.655,-6.3425,-4.9345,-6.9256,-4.6198,-4.6198,-7.5806,-7.5806,-4.5643,-6.9472,-6.5685,-6.6285,-5.809,-6.5139,-6.8375,-6.8956,-4.9602,-6.9067,-6.0002,-7.5806,-5.7954,-7.5806,-7.5806,-7.5806,-4.4281,-6.5707,-6.6512,-6.359,-5.6998,-6.4875,-6.0767,-6.8993,-4.9026,-6.9108],[-5.5853,-5.5853,-5.7002,-5.7002,-5.8491,-5.8491,-4.3702,-4.3702,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-5.8501,-5.8501,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.6082,-6.0783,-7.1385,-6.3349,-7.1385,-6.5064,-6.1807,-6.4097,-7.1385,-6.0492,-6.396,-6.3236,-7.1385,-5.0248,-7.1385,-7.1385,-4.9093,-4.9093,-5.9647,-7.1385,-5.7726,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-5.0195,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.6484,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-6.1826,-7.1385,-5.8786,-7.1385,-7.1385,-7.1385,-4.4362,-4.4362,-5.8786,-5.8786,-4.5924,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.3702,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.5842,-4.393,-5.8501,-7.1385,-4.0295,-4.5158,-4.5,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.393,-4.393,-7.1385,-7.1385,-4.6484,-6.5245,-6.2849,-5.8863,-6.3374,-6.5757,-6.5211,-5.0938,-4.4084,-4.4084,-7.1385,-7.1385,-4.5158,-6.1939,-6.2825,-6.1361,-6.4886,-5.9192,-6.1658,-6.3145,-6.5537,-5.1177,-4.393,-6.031,-6.5267,-7.1385,-7.1385,-7.1385,-6.7966,-7.1385,-7.1385,-7.1385,-6.5276,-6.5481,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-3.8845,-6.0213,-6.4469,-7.1385,-5.9543,-4.3702,-7.1385,-6.504,-5.8971,-6.4784,-7.1385,-6.4857,-7.1385,-4.5242,-4.3702,-4.8101,-7.1385,-4.1667,-7.1385,-3.9887,-4.5,-4.5,-5.31,-5.8501,-7.1385,-5.7726,-5.8786,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.8673,-7.1385,-4.6484,-7.1385,-7.1385,-4.4084,-4.4084,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-5.0195,-5.0195,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.5158,-4.5158,-3.9887,-5.7711,-5.7902,-6.0587,-6.0993,-6.5024,-6.218,-6.1593,-6.0378,-4.313,-7.1385,-7.1385,-4.5242,-6.509,-5.944,-6.256,-6.0016,-6.1155,-5.0353,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.6035,-6.2926,-6.5128,-7.1385,-6.1469,-6.1629,-6.1894,-6.0657,-6.3417,-6.0687,-4.834,-5.4249,-6.3211,-7.1385,-7.1385,-6.2974,-6.1998,-7.1385,-7.1385,-7.1385,-6.046,-6.5146,-7.1385,-6.5044,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-4.393,-5.5853,-5.7002,-5.8491,-4.3564,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-5.9538,-7.1385,-5.7726,-4.6057,-4.4084,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385,-7.1385],[-5.3581,-5.3581,-5.2129,-5.2129,-5.4441,-5.4441,-7.4633,-7.4633,-4.6213,-4.6213,-7.4633,-7.4633,-4.5835,-4.5835,-4.4567,-6.4638,-6.4299,-6.2738,-6.83,-6.166,-6.83,-6.3592,-4.8901,-6.2816,-6.7585,-5.8592,-5.8592,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.5568,-6.4973,-6.4152,-6.3013,-6.7406,-6.8306,-6.8369,-6.5081,-4.9435,-6.586,-6.5991,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.7902,-7.4633,-6.6491,-7.4633,-6.7854,-7.4633,-6.6228,-7.4633,-6.0486,-7.4633,-6.4092,-7.4633,-6.9171,-5.1847,-6.5781,-6.591,-7.4633,-7.4633,-5.822,-7.4633,-5.6011,-7.4633,-7.4633,-4.3842,-6.4008,-6.7445,-6.1477,-6.414,-5.8728,-6.2458,-6.4439,-4.8799,-6.481,-4.5942,-7.4633,-4.3842,-4.8086,-6.5705,-6.5426,-7.4633,-6.5043,-6.4477,-7.4633,-6.4349,-6.4058,-6.5963,-5.0102,-6.513,-6.3313,-4.5647,-4.4567,-5.7478,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-5.7478,-5.7478,-4.4848,-6.1363,-6.7155,-6.1387,-6.5704,-6.0151,-7.4633,-6.5893,-4.7641,-6.5155,-6.0174,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.3884,-7.4633,-5.8592,-4.277,-7.4633,-7.4633,-7.4633,-4.599,-6.2413,-6.2503,-6.6519,-6.0347,-6.8726,-6.4942,-5.1285,-6.5541,-7.4633,-7.4633,-4.5568,-4.5568,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.1057,-6.0607,-7.4633,-7.4633,-7.4633,-7.4633,-6.7939,-6.6569,-6.7965,-7.4633,-7.4633,-7.4633,-7.4633,-6.8557,-7.4633,-7.4633,-7.4633,-6.7746,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.0225,-4.4567,-4.528,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.3703,-5.8592,-4.5568,-5.6011,-5.7478,-4.4567,-4.4567,-4.599,-4.599,-4.6438,-7.4633,-6.4924,-7.4633,-6.2715,-6.2886,-6.2747,-7.4633,-6.5449,-7.4633,-6.7974,-7.4633,-5.0237,-7.4633,-6.3032,-6.5171,-4.7309,-4.599,-7.4633,-4.5568,-4.5568,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.8086,-4.8086,-4.4713,-6.7469,-6.3025,-7.4633,-6.2791,-5.9394,-6.7447,-4.6573,-6.2691,-5.9114,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.6213,-4.6213,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-5.2273,-7.4633,-6.5838,-7.4633,-7.4633,-6.3286,-6.3876,-6.1361,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-6.5281,-7.4633,-7.4633,-5.9898,-6.7662,-4.5835,-4.5835,-4.5835,-6.8636,-6.3982,-6.2407,-6.6275,-6.1272,-6.6197,-6.6295,-5.0616,-6.3894,-4.1057,-5.3581,-5.2129,-5.4441,-4.1188,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.6213,-4.6213,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-4.2703,-4.3171,-5.6011,-4.605,-7.4633,-4.4327,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633,-7.4633]]},"Support Vector Machine":{"kind":"linear","probabilistic":false,"classes":["negative","neutral","positive"],"coef":[[-0.0709,-0.0709,-0.0287,-0.0287,0.0279,0.0279,-0.3713,-0.3713,-0.2781,-0.2781,0.5478,0.5478,-0.3062,-0.3062,-0.2787,-0.0,0.0,0.0,-0.0,-0.1558,-0.0245,-0.0,-0.2285,-0.0,-0.0044,0.0237,0.0237,0.5075,0.0,-0.0001,0.0,0.0,-0.0002,0.0,0.5778,0.0839,-0.31,-0.0,-0.0,0.0,-0.0001,-0.0,-0.0,-0.0,-0.3524,-0.0,0.0001,0.5478,0.1805,-0.0002,-0.0,0.023,-0.0,-0.0002,-0.0001,0.53,-0.0002,-0.3616,0.0006,-0.0,-0.0002,-0.0,0.0,0.0002,-0.0578,-0.0,-0.0,-0.0,-0.0,-0.0244,-0.3952,-0.0,-0.0016,0.3634,0.3634,0.4295,0.5581,-0.0028,0.5581,0.5581,-0.5072,-0.0034,-0.0946,-0.0002,-0.0,-0.019,-0.0026,0.0,-0.4937,-0.0685,-0.0411,0.4476,-0.5072,-0.1325,-0.0,0.0,0.5478,-0.0138,0.0,-0.3173,-0.0516,-0.0,-0.0,-0.4613,-0.0,-0.0405,0.3597,-0.2787,-0.047,0.8647,0.4647,0.4647,-0.3126,-0.3126,-0.047,-0.047,-0.6538,-0.0,0.0001,0.0001,-0.0,-0.0,-0.3713,-0.0,-0.4861,0.0003,-0.018,0.5478,0.5478,0.4476,0.0,-0.0002,0.0,0.1323,0.0,0.0,0.4223,0.0,-0.5799,-0.3843,0.0237,-0.4958,-0.4441,-0.2906,-0.2329,-0.2351,-0.0,-0.0133,-0.0,-0.0022,-0.2006,-0.0,-0.1741,-0.0,-0.3843,-0.3843,-0.31,-0.31,-0.3173,0.0,0.0001,0.0001,0.0001,-0.04,0.0,-0.3395,-0.1604,-0.1604,0.5075,0.5075,-0.2906,0.0,-0.0,0.0,0.0001,-0.0,-0.0,0.0001,-0.0491,-0.3226,-0.021,0.4723,-0.2657,0.3762,0.5149,0.603,-0.4499,-0.238,-0.2788,0.7919,-0.1755,-0.2373,0.4089,-0.2043,0.4171,0.587,0.3433,-0.2669,0.5581,-0.0001,0.0,-0.0005,-0.0,0.0,-0.0,0.0151,0.6441,0.0,-0.5982,-0.2787,-0.4501,0.7383,0.0001,-0.0001,0.4476,0.0001,-0.3713,0.4476,-0.1272,0.0002,-0.0,1.0618,-0.0,0.4647,-0.727,-0.3713,-0.3788,0.6764,0.012,0.5075,-0.4595,-0.2329,-0.2329,-0.1702,0.0237,-0.31,-0.0028,-0.047,-0.2787,-0.2787,-0.2351,-0.2351,0.2405,0.0005,0.0,0.0,0.0003,0.0,0.0,0.3679,-0.0,-0.0001,-0.0,-0.0,0.1903,-0.0001,0.0002,-0.184,-0.4536,-0.2351,-0.3173,-0.31,-0.31,-0.1604,-0.1604,0.587,0.587,0.4647,-0.0001,0.0,-0.0001,0.1844,0.0,0.0,0.0,0.434,0.0,-0.1325,-0.1325,-0.0335,0.0001,-0.0264,0.4647,-0.0,0.0001,-0.0347,-0.4686,-0.0,-0.0879,-0.2906,-0.2906,-0.4595,0.0007,0.0002,-0.0169,0.0001,0.0001,0.0001,0.0,0.0,-0.5054,0.651,0.651,-0.727,-0.0166,-0.0468,-0.0671,-0.0192,0.0,-0.6299,-0.2781,-0.2781,0.651,-0.0001,-0.0001,-0.0001,-0.0011,-0.0001,0.1945,0.0,0.6603,0.1819,-0.1137,-0.003,0.5581,0.0001,0.0,0.0001,-0.0,0.0,0.0001,-0.3718,-0.0407,-0.2228,-0.3648,0.6829,-0.2614,-0.5551,-0.2903,-0.4682,0.9509,-0.1989,-0.2069,0.498,-0.2271,0.7682,-0.2379,0.5326,0.4471,-0.4493,-0.4262,-0.3062,-0.3062,-0.3062,-0.0754,0.0001,0.0,-0.0,0.0,-0.0,-0.0,-0.3233,-0.0,-0.021,-0.0709,-0.0287,0.0279,-0.0004,0.587,-0.0,0.0,-0.0002,0.0183,0.0819,-0.0001,0.0,0.6141,0.0,0.5075,0.5075,-0.2781,-0.2781,0.6764,-0.0001,0.1134,-0.0001,0.0486,0.0,-0.0,0.0,0.6769,0.0,-0.3253,-0.4309,-0.0028,-0.7968,-0.1604,-0.8002,0.8647,-0.0002,-0.0001,0.0947,0.0733,-0.0001,0.0002,-0.0001,0.9059,-0.0],[0.061,0.061,-0.0509,-0.0509,-0.0502,-0.0502,0.6179,0.6179,-0.2962,-0.2962,-0.2262,-0.2262,-0.2068,-0.2068,-0.1212,-0.0,-0.0,-0.0,-0.0,-0.0322,0.0001,-0.0,-0.1248,-0.0,-0.0,0.0287,0.0287,-0.2564,-0.0,0.0,0.0,-0.0,0.0,-0.0,-0.2861,-0.0549,-0.2159,-0.0,-0.0,-0.0,-0.02,-0.0,0.0,0.0,-0.2365,0.0,-0.0,-0.2262,-0.0533,0.0,-0.0,0.0,-0.0,-0.0021,-0.0,-0.2348,0.0,0.2697,0.0,0.0,0.0,0.0,0.0,0.0,0.257,0.0001,0.0,0.0001,0.0,0.0008,0.2173,0.0001,0.0,0.009,0.009,-0.1458,-0.2572,0.0781,-0.2572,-0.2572,-0.2409,0.0,0.0011,0.0,-0.0,-0.0017,-0.0,0.0003,-0.281,-0.0041,-0.4264,-0.2858,-0.2409,0.0753,-0.0,-0.0347,-0.2262,0.0001,-0.0,0.8374,-0.0792,-0.0583,0.0002,-0.3831,-0.0,0.0,-0.2708,-0.1212,0.0393,-0.3201,-0.1812,-0.1812,0.6088,0.6088,0.0393,0.0393,0.1234,-0.025,0.0001,0.0,0.0,0.0,0.6179,-0.0347,-0.4381,-0.0535,0.0001,-0.2262,-0.2262,-0.2858,-0.0112,-0.0,-0.0012,-0.0551,-0.0,0.0001,-0.2781,-0.0067,0.1964,0.9198,0.0287,-0.5709,0.9131,0.619,0.4574,-0.2637,0.0,0.0001,-0.0008,-0.0298,-0.1508,-0.0307,-0.1966,0.0004,0.9198,0.9198,-0.2159,-0.2159,0.8374,-0.0,-0.0,-0.0001,-0.0,0.1171,-0.0001,0.8903,0.6413,0.6413,-0.2564,-0.2564,0.619,0.0,-0.0,0.0,-0.0001,0.0,0.0,-0.0,0.0261,0.7257,-0.108,-0.1626,0.4785,-0.1688,-0.2338,-0.2435,0.139,-0.1683,-0.2299,-0.3593,0.3334,0.5957,-0.1806,-0.1833,-0.2096,-0.2412,-0.1667,-0.2259,-0.2572,-0.0,0.0,-0.0,0.0,-0.0,-0.0,-0.0017,-0.2989,0.0,-0.4385,-0.1212,-0.4169,0.6181,0.0,0.0,-0.2858,0.0,0.6179,-0.2858,-0.0001,-0.0001,0.0,-0.3257,-0.0,-0.1812,0.9008,0.6179,1.0449,-0.4929,0.5464,-0.2564,0.8981,0.4574,0.4574,-0.0168,0.0287,-0.2159,0.0781,0.0393,-0.1212,-0.1212,-0.2637,-0.2637,-0.5376,-0.0367,0.0,0.0,-0.0,0.0,-0.0326,-0.1136,-0.0477,-0.023,0.0014,-0.0261,-0.4493,-0.035,0.0001,-0.0598,0.4288,-0.2637,0.8374,-0.2159,-0.2159,0.6413,0.6413,-0.2412,-0.2412,-0.1812,-0.0,0.0,-0.0,-0.0508,-0.0,-0.0,-0.0,-0.1858,-0.0,0.0753,0.0753,-0.6103,-0.0,0.0,-0.1812,-0.0,-0.0,0.0002,-0.6526,0.0001,0.0,0.619,0.619,0.8981,0.0,-0.0001,0.0,0.0,0.0,0.0,-0.0,0.0,1.0005,-0.2499,-0.2499,0.9008,-0.0,-0.0008,-0.0001,0.0127,0.0,0.9809,-0.2962,-0.2962,-0.2499,0.0,0.0,-0.0,-0.0084,-0.0,-0.0631,-0.0,-0.2518,0.2638,0.1008,-0.0,-0.2572,0.0,-0.0,0.0,0.0,-0.0,0.0,0.6642,0.0987,0.75,-0.2199,-0.2444,0.6092,0.2789,-0.1672,-0.3181,-0.3654,0.4,0.5569,-0.1872,0.5511,-0.3006,-0.2666,-0.2128,-0.1681,-0.3706,-0.19,-0.2068,-0.2068,-0.2068,-0.0221,0.0001,0.0,-0.0,0.0,-0.0322,0.0,-0.2096,0.0,-0.108,0.061,-0.0509,-0.0502,-0.1235,-0.2412,-0.0,0.0,-0.0,-0.0,-0.0276,-0.0,-0.0,-0.2605,-0.0,-0.2564,-0.2564,-0.2962,-0.2962,-0.4929,0.0001,-0.0864,-0.0134,-0.0152,0.0,-0.0,0.0,-0.4987,-0.0,-0.2769,-0.433,0.0781,0.2397,0.6413,-0.3343,-0.3201,-0.0,0.0,-0.034,-0.0054,-0.0,-0.0013,-0.0,-0.3519,0.0],[-0.007,-0.007,0.061,0.061,-0.0056,-0.0056,-0.228,-0.228,0.5427,0.5427,-0.346,-0.346,0.4886,0.4886,0.385,0.0,0.0,0.0,0.0,0.2069,0.0305,0.0,0.3257,0.0,-0.0,-0.0319,-0.0319,-0.2788,-0.0,0.0,-0.0,-0.0,-0.0,-0.0,-0.3362,-0.0057,0.5046,0.0,0.0,-0.0,0.0186,-0.0,0.0,0.0,0.5654,-0.0,-0.0,-0.346,-0.0844,-0.0,0.0,-0.0273,0.0,-0.0,0.0,-0.3385,0.0,0.0874,0.0,0.0,0.0,-0.0,0.0,-0.0,-0.2349,-0.0001,0.0,-0.0,-0.0,0.0428,0.18,0.0,-0.0003,-0.4289,-0.4289,-0.2973,-0.3277,-0.0644,-0.3277,-0.3277,0.7115,-0.0001,0.1195,-0.0,0.0,-0.0001,0.0141,-0.0,0.7245,0.0816,0.4381,-0.1619,0.7115,0.039,0.0,0.0119,-0.346,-0.0,0.0,-0.4968,0.146,0.0631,-0.0,0.8231,-0.0001,0.0563,-0.112,0.385,0.0165,-0.5768,-0.2946,-0.2946,-0.2782,-0.2782,0.0165,0.0165,0.5064,-0.0001,-0.0001,-0.0,0.0,-0.0,-0.228,-0.0002,0.8976,0.0623,0.0307,-0.346,-0.346,-0.1619,-0.0,0.0,-0.0,-0.0555,-0.0,-0.0,-0.1456,-0.0,0.3213,-0.5411,-0.0319,0.9829,-0.4551,-0.3132,-0.2233,0.4717,-0.0,0.0,0.0,0.0293,0.3511,-0.0002,0.3731,-0.0,-0.5411,-0.5411,0.5046,0.5046,-0.4968,0.0,-0.0,-0.0,-0.0389,-0.1042,0.0,-0.4828,-0.4536,-0.4536,-0.2788,-0.2788,-0.3132,-0.0,0.0,0.0,0.0,-0.0,0.0,-0.0,-0.0367,-0.3556,0.0571,-0.3138,-0.1713,-0.2386,-0.292,-0.4022,0.3644,0.3844,0.4753,-0.4962,-0.1345,-0.2861,-0.271,0.377,-0.2306,-0.3756,-0.204,0.4638,-0.3277,0.0,-0.0,0.0001,0.0001,-0.0,0.0,0.0003,-0.382,-0.0,1.0075,0.385,0.8463,-1.399,0.0001,0.0,-0.1619,0.0001,-0.228,-0.1619,-0.0,0.0003,-0.0,-0.7904,-0.0,-0.2946,-0.2107,-0.228,-0.615,-0.2273,-0.5665,-0.2788,-0.4225,-0.2233,-0.2233,0.2021,-0.0319,0.5046,-0.0644,0.0165,0.385,0.385,0.4717,0.4717,0.2211,-0.0,-0.0,-0.0,0.0,-0.0,0.0,-0.2162,0.018,0.0,-0.0,0.0,0.2447,0.0,-0.0,0.2793,0.0196,0.4717,-0.4968,0.5046,0.5046,-0.4536,-0.4536,-0.3756,-0.3756,-0.2946,0.0,0.0,0.0001,-0.1363,-0.0,-0.0,-0.0,-0.2485,-0.0,0.039,0.039,0.5666,-0.0001,-0.0,-0.2946,0.0,0.0043,0.0504,1.037,-0.0,0.0776,-0.3132,-0.3132,-0.4225,-0.0,0.0,0.0002,0.0,0.0001,0.0001,0.0,0.0,-0.4708,-0.4249,-0.4249,-0.2107,0.0003,-0.0,0.0001,-0.0001,-0.0,-0.2441,0.5427,0.5427,-0.4249,0.0,-0.0,0.0,0.002,0.0,-0.1112,-0.0,-0.4393,-0.4538,-0.0419,0.0002,-0.3277,-0.0,0.0,0.0,-0.0,0.0,0.0,-0.243,-0.0416,-0.4034,0.5673,-0.4879,-0.3107,0.363,0.4459,0.7662,-0.6292,-0.2209,-0.2981,-0.3493,-0.2807,-0.5292,0.4959,-0.3399,-0.299,0.7988,0.5895,0.4886,0.4886,0.4886,0.1208,-0.0,-0.0,0.0,-0.0,0.0275,0.0,0.4972,-0.0001,0.0571,-0.007,0.061,-0.0056,0.0551,-0.3756,0.0,-0.0,0.0,0.0003,-0.0386,0.0,-0.0,-0.4081,-0.0,-0.2788,-0.2788,0.5427,0.5427,-0.2273,-0.0,0.0,0.0,-0.0239,-0.0,-0.0,-0.0,-0.239,-0.0,0.5723,0.8178,-0.0644,0.5468,-0.4536,1.0958,-0.5768,-0.0,0.0,-0.0505,-0.0401,0.0,0.0001,0.0,-0.6171,0.0]],"intercept":[-0.2429,-0.4995,-0.2199]},"Logistic Regression":{"kind":"linear","probabilistic":true,"classes":["negative","neutral","positive"],"coef":[[-0.0534,-0.0534,0.0118,0.0118,0.1266,0.1266,-0.5754,-0.5754,-0.4068,-0.4068,0.8507,0.8507,-0.4384,-0.4384,-0.4351,-0.0319,-0.0433,-0.0479,-0.0131,-0.0794,-0.0216,-0.0294,-0.2871,-0.0388,-0.032,0.0771,0.0771,0.808,0.0916,0.0372,0.1567,0.0516,0.0777,0.0827,0.555,0.0848,-0.4492,-0.0316,-0.034,-0.0443,-0.0374,-0.0174,-0.0179,-0.0231,-0.3403,-0.0231,-0.0429,0.8507,0.1216,0.0849,0.0607,0.1455,0.0337,0.066,0.0303,0.5838,0.0651,-0.6817,-0.0433,-0.0236,-0.0674,-0.0196,-0.0204,-0.0547,-0.0574,-0.0564,-0.0244,-0.0611,-0.0278,-0.0292,-0.4946,-0.0218,-0.0431,0.7181,0.7181,0.7013,0.8712,-0.0371,0.8712,0.8712,-0.6976,-0.0569,-0.0604,-0.0761,-0.0367,-0.1033,-0.0654,-0.0438,-0.4618,-0.0853,0.0684,0.7686,-0.6976,-0.1946,-0.0402,-0.0557,0.8507,-0.0539,-0.0382,-0.5197,-0.0734,-0.0525,-0.0301,-0.446,-0.0439,-0.0972,0.5761,-0.4351,-0.0817,1.2995,0.8222,0.8222,-0.5224,-0.5224,-0.0817,-0.0817,-1.0175,-0.0611,-0.0337,-0.0615,-0.0244,-0.0609,-0.5754,-0.0277,-0.4903,-0.0567,-0.1112,0.8507,0.8507,0.7686,0.0447,0.0447,0.0715,0.1276,0.026,0.046,0.5995,0.041,-0.9613,-0.6313,0.0771,-0.7705,-0.7447,-0.4819,-0.4066,-0.4211,-0.0576,-0.0611,-0.0261,-0.0668,-0.0457,-0.0337,-0.2551,-0.0321,-0.6313,-0.6313,-0.4492,-0.4492,-0.5197,-0.0286,-0.034,-0.0729,-0.0346,-0.0643,-0.0329,-0.382,-0.4242,-0.4242,0.808,0.808,-0.4819,-0.0492,-0.074,-0.041,-0.0279,-0.0476,-0.0297,-0.0375,-0.055,-0.3155,0.0182,0.8477,-0.129,0.1267,0.2186,0.3041,-0.2068,-0.0955,-0.1111,0.3117,-0.0928,-0.1481,0.1378,-0.0725,0.1916,0.9265,0.1212,-0.1021,0.8712,0.0793,0.0444,0.0722,0.1415,0.0508,0.0466,0.0504,0.6673,0.0414,-0.8896,-0.4351,-0.66,1.1511,-0.0595,-0.0624,0.7686,-0.0509,-0.5754,0.7686,-0.0646,-0.0605,-0.0165,1.3842,-0.0329,0.8222,-0.8741,-0.5754,-0.4879,0.9797,-0.0164,0.808,-0.7742,-0.4066,-0.4066,-0.3197,0.0771,-0.4492,-0.0371,-0.0817,-0.4351,-0.4351,-0.4211,-0.4211,0.4673,0.1486,-0.061,0.1214,-0.0687,-0.0491,-0.0684,0.308,-0.0479,0.1251,-0.0259,0.07,0.3076,0.0995,-0.0576,-0.1294,-0.7742,-0.4211,-0.5197,-0.4492,-0.4492,-0.4242,-0.4242,0.9265,0.9265,0.8222,0.0496,0.0802,0.0408,0.2757,0.0411,0.0505,0.0568,0.5152,0.0529,-0.1946,-0.1946,0.0278,-0.0315,-0.0747,0.8222,-0.0468,-0.0873,-0.033,-0.5478,-0.0515,-0.1622,-0.4819,-0.4819,-0.7742,-0.066,-0.1146,-0.0721,-0.0402,-0.017,-0.0458,-0.0394,-0.0482,-0.6093,1.0814,1.0814,-0.8741,-0.0578,-0.1076,-0.0917,-0.0998,-0.0544,-0.6205,-0.4068,-0.4068,1.0814,0.0456,0.0825,0.0699,0.2159,0.0708,0.179,0.06,0.7669,0.2873,-0.0991,-0.0572,0.8712,-0.0368,-0.0475,-0.0364,-0.0331,-0.0382,-0.0564,-0.4052,-0.0982,-0.2323,-0.1451,0.3475,-0.1558,-0.3984,-0.1228,-0.2268,0.543,-0.1535,-0.1207,0.1986,-0.1205,0.3999,-0.1072,0.3199,0.1912,-0.2561,-0.1368,-0.4384,-0.4384,-0.4384,-0.0402,-0.0492,-0.0549,-0.0219,-0.0615,-0.0335,-0.0234,-0.2922,-0.0385,0.0182,-0.0534,0.0118,0.1266,-0.0073,0.9265,0.0347,0.0757,0.0565,0.1356,0.1639,0.0517,0.0689,0.6712,0.0307,0.808,0.808,-0.4068,-0.4068,0.9797,0.0418,0.1414,0.0684,0.2114,0.0629,0.0456,0.0324,0.7,0.0379,-0.5914,-0.673,-0.0371,-1.0524,-0.4242,-0.851,1.2995,0.0895,0.0747,0.1894,0.2201,0.0761,0.1471,0.04,0.9402,0.0474],[0.0699,0.0699,-0.1052,-0.1052,-0.127,-0.127,1.0246,1.0246,-0.4038,-0.4038,-0.373,-0.373,-0.3476,-0.3476,-0.3017,-0.0216,-0.0248,-0.0316,-0.0094,-0.0523,-0.016,-0.0271,-0.1997,-0.0317,-0.0165,0.0483,0.0483,-0.397,-0.0558,-0.017,-0.0803,-0.0247,-0.0368,-0.0428,-0.2632,-0.0406,-0.3635,-0.024,-0.0247,-0.0362,-0.0293,-0.0139,-0.0168,-0.0255,-0.2742,-0.0234,-0.0274,-0.373,-0.0496,-0.0469,-0.0244,-0.0641,-0.0144,-0.0274,-0.0138,-0.2519,-0.03,0.5026,0.0907,-0.0204,0.1208,-0.0156,0.0475,0.0558,0.1749,-0.0535,0.0584,0.0356,0.0696,-0.0276,0.3379,-0.0241,-0.0286,0.1573,0.1573,-0.2334,-0.4084,0.1444,-0.4084,-0.4084,-0.4763,-0.0358,-0.0347,-0.0514,-0.0261,-0.0691,-0.0547,-0.038,-0.318,-0.0428,-0.727,-0.423,-0.4763,0.0965,-0.0357,-0.043,-0.373,-0.0474,-0.0339,1.2144,-0.0646,-0.0587,-0.037,-0.3847,-0.0459,-0.0656,-0.548,-0.3017,0.0981,-0.5306,-0.3609,-0.3609,0.993,0.993,0.0981,0.0981,0.2582,-0.0602,-0.0273,-0.067,-0.0248,-0.059,1.0246,-0.0376,-0.4785,-0.0628,-0.0834,-0.373,-0.373,-0.423,-0.0247,-0.0265,-0.0393,-0.0652,-0.0147,-0.0258,-0.3303,-0.0246,0.4124,1.279,0.0483,-0.6437,1.4886,0.9939,0.7824,-0.4103,-0.05,-0.0612,-0.0248,-0.0604,-0.0422,-0.0419,-0.248,-0.0378,1.279,1.279,-0.3635,-0.3635,1.2144,0.0566,0.0777,0.164,0.1103,0.1625,0.0788,0.8916,1.0415,1.0415,-0.397,-0.397,0.9939,0.0871,0.1151,0.0808,0.0551,0.1313,0.0596,0.0879,0.1145,0.6602,-0.1462,-0.3078,0.2214,-0.0526,-0.1219,-0.1182,0.0646,-0.0697,-0.0895,-0.1362,0.1748,0.3226,-0.057,-0.0629,-0.0873,-0.405,-0.0557,-0.0876,-0.4084,-0.0366,-0.0272,-0.0319,-0.069,-0.0238,-0.0217,-0.0232,-0.3077,-0.0211,-0.7119,-0.3017,-0.5763,0.9301,0.1106,0.0952,-0.423,0.0963,1.0246,-0.423,0.1229,0.1551,0.0314,-0.5524,0.0729,-0.3609,1.3553,1.0246,0.9978,-0.568,0.9198,-0.397,1.4793,0.7824,0.7824,-0.0512,0.0483,-0.3635,0.1444,0.0981,-0.3017,-0.3017,-0.4103,-0.4103,-0.9123,-0.0642,-0.0391,-0.0494,-0.0564,-0.0405,-0.0472,-0.1251,-0.0463,-0.0556,-0.0264,-0.0336,-0.6468,-0.0482,-0.0554,-0.073,0.5976,-0.4103,1.2144,-0.3635,-0.3635,1.0415,1.0415,-0.405,-0.405,-0.3609,-0.0217,-0.0433,-0.0172,-0.1094,-0.0178,-0.0221,-0.0275,-0.2274,-0.0255,0.0965,0.0965,-0.8132,-0.0253,-0.0491,-0.3609,-0.0405,-0.068,-0.0335,-0.4832,-0.0546,-0.0995,0.9939,0.9939,1.4793,0.1135,0.1737,0.1402,0.0758,0.0443,0.0906,0.088,0.0966,1.1831,-0.462,-0.462,1.3553,0.085,0.1544,0.137,0.1859,0.0805,0.9707,-0.4038,-0.4038,-0.462,-0.0191,-0.0471,-0.0276,-0.0937,-0.0294,-0.0717,-0.0282,-0.3208,0.4526,0.1761,0.0841,-0.4084,0.0627,0.0877,0.0806,0.0569,0.074,0.1,0.7198,0.2033,0.4813,-0.1,-0.1274,0.3461,0.2774,-0.0957,-0.1849,-0.2264,0.3284,0.3172,-0.0785,0.278,-0.153,-0.1114,-0.1359,-0.0803,-0.2482,-0.0828,-0.3476,-0.3476,-0.3476,-0.0293,-0.034,-0.044,-0.0179,-0.0434,-0.0322,-0.0246,-0.2279,-0.0361,-0.1462,0.0699,-0.1052,-0.127,-0.1278,-0.405,-0.0148,-0.0429,-0.0231,-0.0572,-0.0671,-0.022,-0.0321,-0.2902,-0.0145,-0.397,-0.397,-0.4038,-0.4038,-0.568,-0.023,-0.0912,-0.0392,-0.1179,-0.0363,-0.027,-0.0201,-0.4043,-0.0235,-0.4346,-0.654,0.1444,0.3688,1.0415,-0.5677,-0.5306,-0.0348,-0.0394,-0.0697,-0.0929,-0.0297,-0.0578,-0.0171,-0.3814,-0.0214],[-0.0165,-0.0165,0.0934,0.0934,0.0004,0.0004,-0.4492,-0.4492,0.8107,0.8107,-0.4777,-0.4777,0.786,0.786,0.7368,0.0535,0.0681,0.0795,0.0225,0.1317,0.0376,0.0565,0.4868,0.0705,0.0485,-0.1255,-0.1255,-0.411,-0.0358,-0.0202,-0.0764,-0.0269,-0.0409,-0.0399,-0.2919,-0.0442,0.8128,0.0556,0.0587,0.0805,0.0667,0.0313,0.0347,0.0487,0.6145,0.0466,0.0703,-0.4777,-0.072,-0.0379,-0.0363,-0.0814,-0.0194,-0.0386,-0.0165,-0.3318,-0.035,0.1791,-0.0474,0.044,-0.0534,0.0352,-0.0271,-0.001,-0.1175,0.1099,-0.034,0.0255,-0.0418,0.0568,0.1567,0.0459,0.0717,-0.8753,-0.8753,-0.4679,-0.4629,-0.1073,-0.4629,-0.4629,1.1738,0.0927,0.095,0.1275,0.0628,0.1724,0.1201,0.0818,0.7798,0.1281,0.6586,-0.3456,1.1738,0.0982,0.0759,0.0988,-0.4777,0.1013,0.0721,-0.6948,0.1381,0.1112,0.0671,0.8307,0.0898,0.1628,-0.0281,0.7368,-0.0165,-0.769,-0.4613,-0.4613,-0.4706,-0.4706,-0.0165,-0.0165,0.7592,0.1213,0.061,0.1285,0.0492,0.12,-0.4492,0.0654,0.9688,0.1195,0.1946,-0.4777,-0.4777,-0.3456,-0.02,-0.0183,-0.0322,-0.0624,-0.0113,-0.0202,-0.2692,-0.0164,0.5488,-0.6477,-0.1255,1.4143,-0.7439,-0.512,-0.3758,0.8314,0.1076,0.1223,0.0509,0.1271,0.0879,0.0756,0.5031,0.07,-0.6477,-0.6477,0.8128,0.8128,-0.6948,-0.028,-0.0437,-0.091,-0.0757,-0.0983,-0.0459,-0.5095,-0.6173,-0.6173,-0.411,-0.411,-0.512,-0.0379,-0.0412,-0.0399,-0.0272,-0.0837,-0.0299,-0.0504,-0.0595,-0.3447,0.1279,-0.54,-0.0924,-0.0741,-0.0968,-0.1859,0.1422,0.1652,0.2006,-0.1755,-0.082,-0.1746,-0.0809,0.1354,-0.1043,-0.5215,-0.0654,0.1897,-0.4629,-0.0427,-0.0172,-0.0403,-0.0725,-0.027,-0.0249,-0.0272,-0.3596,-0.0204,1.6015,0.7368,1.2362,-2.0812,-0.051,-0.0327,-0.3456,-0.0454,-0.4492,-0.3456,-0.0583,-0.0946,-0.0149,-0.8319,-0.04,-0.4613,-0.4812,-0.4492,-0.51,-0.4117,-0.9034,-0.411,-0.7051,-0.3758,-0.3758,0.3708,-0.1255,0.8128,-0.1073,-0.0165,0.7368,0.7368,0.8314,0.8314,0.445,-0.0844,0.1001,-0.0719,0.1251,0.0896,0.1156,-0.1829,0.0943,-0.0695,0.0523,-0.0364,0.3392,-0.0513,0.1131,0.2024,0.1766,0.8314,-0.6948,0.8128,0.8128,-0.6173,-0.6173,-0.5215,-0.5215,-0.4613,-0.0279,-0.0368,-0.0237,-0.1663,-0.0233,-0.0285,-0.0293,-0.2878,-0.0274,0.0982,0.0982,0.7854,0.0568,0.1238,-0.4613,0.0873,0.1553,0.0664,1.031,0.1061,0.2617,-0.512,-0.512,-0.7051,-0.0476,-0.0591,-0.0681,-0.0356,-0.0273,-0.0448,-0.0486,-0.0484,-0.5738,-0.6194,-0.6194,-0.4812,-0.0272,-0.0468,-0.0454,-0.0861,-0.0261,-0.3501,0.8107,0.8107,-0.6194,-0.0265,-0.0354,-0.0423,-0.1222,-0.0414,-0.1073,-0.0317,-0.4461,-0.7399,-0.077,-0.0269,-0.4629,-0.0259,-0.0402,-0.0442,-0.0237,-0.0358,-0.0436,-0.3146,-0.1051,-0.2489,0.2451,-0.22,-0.1903,0.1211,0.2186,0.4116,-0.3166,-0.1749,-0.1964,-0.12,-0.1576,-0.2469,0.2186,-0.184,-0.1109,0.5043,0.2197,0.786,0.786,0.786,0.0696,0.0832,0.0989,0.0399,0.1049,0.0658,0.048,0.5202,0.0746,0.1279,-0.0165,0.0934,0.0004,0.1351,-0.5215,-0.0199,-0.0328,-0.0335,-0.0784,-0.0969,-0.0296,-0.0368,-0.381,-0.0162,-0.411,-0.411,0.8107,0.8107,-0.4117,-0.0188,-0.0502,-0.0292,-0.0936,-0.0266,-0.0186,-0.0123,-0.2956,-0.0145,1.026,1.3269,-0.1073,0.6837,-0.6173,1.4187,-0.769,-0.0546,-0.0354,-0.1197,-0.1271,-0.0464,-0.0893,-0.0229,-0.5588,-0.0261]],"intercept":[0.1201,-0.3494,0.2292]}}}</script>
+<script>
+// <core>  pure functions, no page access: identical text handling to drug_review_sentiment.py
+const LABELS = ['positive','negative','neutral'];
+function cleanText(t){
+  t = String(t).toLowerCase();
+  t = t.replace(/<[^>]+>|http\S+|www\.\S+/g,' ');
+  t = t.replace(/can't/g,'can not').replace(/won't/g,'will not');
+  t = t.replace(/n't\b/g,' not');
+  t = t.replace(/[^a-z0-9\s]/g,' ');
+  return t.replace(/\s+/g,' ').trim();
+}
+function makeEngine(bundle){
+  const vocab = new Map(bundle.vocab.map((w,i)=>[w,i]));
+  const idf = bundle.idf, stop = new Set(bundle.stop_words);
+  const removeStop = s => s.split(/\s+/).filter(w=>w && !stop.has(w)).join(' ');
+  function vectorize(text){
+    const toks = removeStop(cleanText(text)).match(/\b\w\w+\b/g) || [];
+    const counts = new Map();
+    const add = t => { const j = vocab.get(t); if(j!==undefined) counts.set(j,(counts.get(j)||0)+1); };
+    for(let i=0;i<toks.length;i++){ add(toks[i]); if(i+1<toks.length) add(toks[i]+' '+toks[i+1]); }
+    const x=[]; let norm=0;
+    for(const [j,c] of counts){ const v=(1+Math.log(c))*idf[j]; x.push([j,v]); norm+=v*v; }
+    norm = Math.sqrt(norm)||1;
+    return x.map(([j,v])=>[j,v/norm]);
+  }
+  const softmax = z => { const m=Math.max(...z), e=z.map(v=>Math.exp(v-m)), s=e.reduce((a,b)=>a+b,0); return e.map(v=>v/s); };
+  function score(modelName, text){
+    const m = bundle.models[modelName], x = vectorize(text);
+    let raw;
+    if(m.kind==='nb') raw = m.classes.map((_,k)=> m.log_prior[k] + x.reduce((a,[j,v])=>a+v*m.feature_log_prob[k][j],0));
+    else raw = m.classes.map((_,k)=> m.intercept[k] + x.reduce((a,[j,v])=>a+v*m.coef[k][j],0));
+    const p = softmax(raw), best = raw.indexOf(Math.max(...raw)), scores = {};
+    m.classes.forEach((c,k)=>scores[c]=p[k]);
+    return { label:m.classes[best], scores, isProb: m.kind==='nb' || m.probabilistic===true, covered:x.length };
+  }
+  function tokenWeights(label){            // Logistic Regression weights: label vs the other classes
+    const lr = bundle.models['Logistic Regression']; if(!lr) return null;
+    const k = lr.classes.indexOf(label); if(k<0) return null;
+    const others = lr.classes.map((_,i)=>i).filter(i=>i!==k);
+    return tok => { const j=vocab.get(tok); return j===undefined?0: lr.coef[k][j]-others.reduce((a,i)=>a+lr.coef[i][j],0)/others.length; };
+  }
+  function markup(text,label,esc){
+    const w = tokenWeights(label); if(!w) return null;
+    const chunks = text.match(/[A-Za-z0-9']+|[^A-Za-z0-9']+/g) || [];
+    const scored = chunks.map(c=>[c, /^[A-Za-z0-9']/.test(c) ? removeStop(cleanText(c)).split(/\s+/).filter(Boolean).reduce((a,t)=>a+w(t),0) : 0]);
+    const peak = Math.max(0.0001,...scored.map(([,s])=>Math.abs(s)));
+    return scored.map(([c,s])=>{
+      const st = Math.abs(s)/peak;
+      if(s>0 && st>0.2) return `<mark style="--s:${Math.round(15+40*st)}%" title="pushes towards ${label} (${s.toFixed(2)})">${esc(c)}</mark>`;
+      if(s<0 && st>0.2) return `<u title="pulls away from ${label} (${s.toFixed(2)})">${esc(c)}</u>`;
+      return esc(c);
+    }).join('');
+  }
+  return { score, markup, models:Object.keys(bundle.models) };
+}
+// </core>
+
+const TEST_CASES = [
+  ["This medicine relieved my pain completely and I have had no problems at all.","Positive"],
+  ["Terrible drug. It made me dizzy and nauseous and I had to stop taking it.","Negative"],
+  ["The drug worked for my pain, but it made me dizzy and very tired.","Mixed (Neutral or Positive)"],
+  ["This treatment was not effective and did not help me.","Negative"],
+  ["It was okay. Some improvement but nothing special.","Neutral"]
+];
+const EXAMPLE_NAMES = ["Clearly positive","Clearly negative","Mixed","Negated","Neutral"];
+const $ = (s,r=document)=>r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const col = l => `var(--${l==='positive'?'pos':l==='negative'?'neg':'neu'})`;
+const title = s => s.charAt(0).toUpperCase()+s.slice(1);
+
+let bundle=null, engine=null, usingDemo=true, batch=null;
+
+function useBundle(b, demo){
+  bundle=b; engine=makeEngine(b); usingDemo=demo; batch=null;
+  const sel=$('#model-select'); sel.innerHTML='';
+  engine.models.forEach(m=>{ const o=document.createElement('option'); o.value=o.textContent=m; sel.appendChild(o); });
+  const best=(b.meta&&b.meta.best_model); if(best && engine.models.includes(best)) sel.value=best;
+  $('#demo-banner').hidden=!demo;
+  const n=b.meta&&b.meta.n_records;
+  $('#source-chip').textContent = demo ? 'Preview model' : `${b.meta.dataset||'Trained model'}${n?` · ${n.toLocaleString()} reviews`:''}`;
+  $('#model-note').textContent = best&&!demo ? `Best classical model in the study: ${best}` : '';
+  $('#one-out').innerHTML=''; $('#many-out').innerHTML=''; $('#many-setup').innerHTML='';
+  renderResults(); renderTests();
+}
+
+/* ---------- tabs ---------- */
+$('#tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-tab]'); if(!b) return;
+  document.querySelectorAll('#tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  ['one','many','results','tests','feedback'].forEach(t=>$('#tab-'+t).hidden = t!==b.dataset.tab);
+});
+
+/* ---------- one review ---------- */
+EXAMPLE_NAMES.forEach((n,i)=>{ const b=document.createElement('button'); b.textContent=n;
+  b.onclick=()=>{ $('#review').value=TEST_CASES[i][0]; analyse(); }; $('#examples').appendChild(b); });
+function bars(scores,isProb){
+  return LABELS.map(l=>`<div class="br" style="--c:${col(l)}"><span class="nm">${title(l)}</span><div class="tr"><div class="fl" style="width:${((scores[l]||0)*100).toFixed(1)}%"></div></div><span class="v">${Math.round((scores[l]||0)*100)}%</span></div>`).join('')
+   + (isProb?'':'<div class="small">These are relative scores. The SVM does not give true probabilities.</div>');
+}
+function analyse(){
+  const text=$('#review').value;
+  if(!text.trim()){ $('#one-msg').textContent='Enter a review first.'; $('#one-out').innerHTML=''; return; }
+  $('#one-msg').textContent='';
+  const model=$('#model-select').value, r=engine.score(model,text);
+  const rows=engine.models.map(m=>{const x=engine.score(m,text); return `<tr><td>${esc(m)}</td><td><span class="pill ${x.label}">${title(x.label)}</span></td></tr>`;}).join('');
+  const marked=engine.markup(text,r.label,esc);
+  $('#one-out').innerHTML=`
+   <div class="grid2">
+     <div><div class="verdict" style="--c:${col(r.label)}"><div class="w">${title(r.label)}</div><div class="n">Read by ${esc(model)}</div></div>${bars(r.scores,r.isProb)}</div>
+     <div><b>How each model reads it</b><div class="scroll" style="margin-top:.4rem"><table><tr><th>Model</th><th>Sentiment</th></tr>${rows}</table></div></div>
+   </div>
+   ${marked?`<h2>Words behind the verdict</h2><div class="marked" style="--c:${col(r.label)}">${marked}</div>
+   <p class="small">Shaded words pushed towards <b>${r.label}</b>. Dotted words pulled the other way. This view uses the Logistic Regression weights, so it is approximate, whichever model gave the verdict.</p>`:''}`;
+}
+$('#analyse').onclick=analyse;
+$('#review').addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') analyse(); });
+$('#model-select').onchange=()=>{ if($('#review').value.trim()) analyse(); if(batch) $('#many-out').innerHTML='<p class="small">Model changed. Press “Analyse all reviews” again.</p>'; };
+
+/* ---------- many reviews ---------- */
+function parseTable(text){
+  text=text.replace(/^\uFEFF/,'');
+  const first=text.split(/\r?\n/,1)[0]; const d=(first.split('\t').length>=first.split(',').length)?'\t':',';
+  const rows=[]; let row=[], f='', q=false, i=0, startField=true;
+  while(i<text.length){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i+=2;continue;} q=false; i++; continue;} f+=c; i++; continue; }
+    if(c==='"' && startField){ q=true; startField=false; i++; continue; }
+    if(c===d){ row.push(f); f=''; startField=true; i++; continue; }
+    if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(f); f=''; rows.push(row); row=[]; startField=true; i++; continue; }
+    f+=c; startField=false; i++;
+  }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  const headers=rows.shift().map((h,k)=>h===''?`column ${k+1}`:h);
+  return { headers, rows: rows.filter(r=>r.some(v=>v!=='')) };
+}
+const D3=['benefitsReview','sideEffectsReview','commentsReview'];
+function handleFile(file){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    let t; try{ t=parseTable(rd.result); }catch(e){ $('#many-setup').innerHTML='<p>That file could not be read as a table.</p>'; return; }
+    const H=t.headers, hasD3=D3.every(c=>H.includes(c));
+    const opts=(hasD3?[['__d3','All three Druglib review fields']]:[]).concat(H.map((h,i)=>[String(i),h]));
+    const avg=H.map((_,i)=>t.rows.slice(0,200).reduce((a,r)=>a+(r[i]||'').length,0));
+    const guessIdx=H.findIndex(h=>/^(review|reviews|text)$/i.test(h)), longest=avg.indexOf(Math.max(...avg));
+    const guess=hasD3?'__d3':String(guessIdx>=0?guessIdx:longest);
+    const dg=H.findIndex(h=>['urlDrugName','drugName','drug'].includes(h));
+    $('#many-setup').innerHTML=`<p class="small">${esc(file.name)}: ${t.rows.length.toLocaleString()} rows read.</p>
+      <div class="bar"><label class="f">Review column<select id="col-text">${opts.map(([v,l])=>`<option value="${v}"${v===guess?' selected':''}>${esc(l)}</option>`).join('')}</select></label>
+      <label class="f">Drug column<select id="col-drug"><option value="">(none)</option>${H.map((h,i)=>`<option value="${i}"${i===dg?' selected':''}>${esc(h)}</option>`).join('')}</select></label>
+      <button class="primary" id="run-batch" style="align-self:flex-end">Analyse all reviews</button></div>`;
+    $('#run-batch').onclick=()=>runBatch(t,hasD3);
+  };
+  rd.readAsText(file);
+}
+async function runBatch(t,hasD3){
+  const tv=$('#col-text').value, dv=$('#col-drug').value, model=$('#model-select').value;
+  const idx=D3.map(c=>t.headers.indexOf(c));
+  const getText = r => tv==='__d3' ? idx.map(i=>r[i]||'').join(' ') : (r[+tv]||'');
+  const rows=t.rows.filter(r=>getText(r).trim()!==''), out=[];
+  $('#many-out').innerHTML='<p class="small" id="prog">Reading reviews…</p>';
+  for(let i=0;i<rows.length;i++){
+    out.push(engine.score(model,getText(rows[i])).label);
+    if(i%400===0){ $('#prog').textContent=`Reading reviews… ${i.toLocaleString()} of ${rows.length.toLocaleString()}`; await new Promise(r=>setTimeout(r)); }
+  }
+  batch={ rows, out, getText, drugIdx: dv===''?-1:+dv, headers:t.headers, model };
+  renderBatch();
+}
+function renderBatch(){
+  const {rows,out,getText,drugIdx,headers,model}=batch, n=out.length;
+  const cnt={positive:0,negative:0,neutral:0}; out.forEach(l=>cnt[l]++);
+  let html=`<h2>${n.toLocaleString()} reviews read by ${esc(model)}</h2><div class="metrics">${LABELS.map(l=>`<div class="metric"><span class="small">${title(l)}</span><b style="color:${col(l)}">${cnt[l].toLocaleString()}</b><span class="small">${(100*cnt[l]/n).toFixed(0)}% of reviews</span></div>`).join('')}</div>`;
+  if(drugIdx>=0){
+    const g={}; rows.forEach((r,i)=>{ const k=(r[drugIdx]||'(blank)'); (g[k]=g[k]||{positive:0,negative:0,neutral:0,n:0})[out[i]]++; g[k].n++; });
+    const list=Object.entries(g).sort((a,b)=>b[1].n-a[1].n);
+    html+=`<h2>Sentiment by drug</h2><div class="scroll"><table><tr><th>Drug</th><th>Reviews</th><th>Positive</th><th>Negative</th><th>Neutral</th><th style="min-width:10rem">Share of reviews</th></tr>`+
+      list.slice(0,40).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.n}</td>${LABELS.map(l=>`<td class="num">${(100*v[l]/v.n).toFixed(0)}%</td>`).join('')}<td><div class="stack">${LABELS.map(l=>`<i style="width:${100*v[l]/v.n}%;background:${col(l)}"></i>`).join('')}</div></td></tr>`).join('')+`</table></div>`+
+      (list.length>40?`<p class="small">Showing the 40 drugs with the most reviews out of ${list.length}.</p>`:'')+
+      `<h2>Read the reviews for one drug</h2><div class="bar"><label class="f">Drug<select id="pick-drug"><option value="">(choose)</option>${list.map(([k])=>`<option>${esc(k)}</option>`).join('')}</select></label>
+      <label class="f">Show<select id="pick-kind"><option value="">all</option>${LABELS.map(l=>`<option value="${l}">${l}</option>`).join('')}</select></label></div><div id="drug-reviews"></div>`;
+  }
+  html+=`<div class="row"><button id="dl-batch">Download results (CSV)</button></div>`;
+  $('#many-out').innerHTML=html;
+  const show=()=>{ const d=$('#pick-drug').value,k=$('#pick-kind').value; if(!d){$('#drug-reviews').innerHTML='';return;}
+    const items=rows.map((r,i)=>[r,out[i]]).filter(([r,l])=>(r[drugIdx]||'(blank)')===d&&(!k||l===k)).slice(0,50);
+    $('#drug-reviews').innerHTML=`<div class="scroll"><table><tr><th>Review</th><th>Sentiment</th></tr>${items.map(([r,l])=>`<tr><td>${esc(getText(r).slice(0,500))}</td><td><span class="pill ${l}">${title(l)}</span></td></tr>`).join('')}</table></div>`; };
+  if(drugIdx>=0){ $('#pick-drug').onchange=show; $('#pick-kind').onchange=show; }
+  $('#dl-batch').onclick=()=>download('review_sentiment_results.csv',toCSV([...headers,'sentiment'],rows.map((r,i)=>[...headers.map((_,k)=>r[k]||''),out[i]])));
+}
+const dz=$('#drop'); $('#pick').onclick=()=>$('#data-file').click();
+$('#data-file').onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over');}));
+dz.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+/* ---------- csv helpers ---------- */
+const q = v => /[",\n\r\t]/.test(v) ? '"'+String(v).replace(/"/g,'""')+'"' : String(v);
+const toCSV=(h,rows)=>[h,...rows].map(r=>r.map(q).join(',')).join('\n');
+function download(name,text){ try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'})); a.download=name; a.click(); }catch(e){} }
+
+/* ---------- results ---------- */
+function tbl(rows,cols){ return `<div class="scroll"><table><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>{const v=r[c[0]]; return `<td class="${typeof v==='number'?'num':''}">${typeof v==='number'?(Number.isInteger(v)?v.toLocaleString():v.toFixed(4)):esc(v)}</td>`;}).join('')}</tr>`).join('')}</table></div>`; }
+function renderResults(){
+  const R=bundle.results, out=$('#results-out');
+  if(!R){ out.innerHTML=`<p>${usingDemo?'The preview model has no study results. ':''}Load the <code>web_bundle.json</code> written by <code>drug_review_sentiment.py</code> to see your tables, charts and confusion matrices here.</p>`; return; }
+  let h=`<p>Results of the comparison in the study, exactly as the pipeline wrote them.</p>`;
+  h+=`<h2>Overall performance on the test set</h2>`+tbl(R.performance,[['Model','Model'],['Accuracy','Accuracy'],['Precision_macro','Precision (macro)'],['Recall_macro','Recall (macro)'],['F1_macro','F1-score (macro)'],['Training_time_s','Training time (s)']]);
+  h+=`<h2>Model comparison</h2>`+R.performance.map(m=>`<div class="mb"><b>${esc(m.Model)}</b>`+[['Accuracy','Accuracy'],['Precision_macro','Precision'],['Recall_macro','Recall'],['F1_macro','F1-score']].map(([k,l])=>`<div class="l"><span class="a">${l}</span><span class="t"><i style="width:${m[k]*100}%"></i></span><span>${(m[k]*100).toFixed(1)}%</span></div>`).join('')+`</div>`).join('');
+  h+=`<h2>Performance for each sentiment class</h2>`+tbl(R.classwise,[['Model','Model'],['Class','Class'],['Precision','Precision'],['Recall','Recall'],['F1','F1-score'],['Support','Support']]);
+  if(R.distribution) h+=`<h2>Sentiment distribution</h2>`+tbl(R.distribution,[['Class','Class'],['Training','Training'],['Testing','Testing'],['Total','Total']]);
+  if(R.data_prep) h+=`<h2>Records kept at each cleaning stage</h2>`+tbl(R.data_prep,[['Stage','Stage'],['Number of records','Records']]);
+  if(R.top_terms) h+=`<h2>Most influential words for each class</h2>`+tbl(R.top_terms,[['Class','Class'],['Top_terms','Terms with the largest positive weights (Logistic Regression)']]);
+  h+=`<h2>Confusion matrices</h2><div class="grid2">`+Object.entries(R.confusion).map(([name,c])=>{ const mx=Math.max(...c.matrix.flat());
+    return `<div><b>${esc(name)}</b><div class="scroll"><table class="cm"><tr><th></th>${c.labels.map(l=>`<th>${title(l)}</th>`).join('')}</tr>${c.matrix.map((r,i)=>`<tr><th>${title(c.labels[i])}</th>${r.map(v=>`<td style="--s:${Math.round(8+60*v/mx)}%">${v}</td>`).join('')}</tr>`).join('')}</table></div><div class="small">Rows: actual class. Columns: predicted class.</div></div>`; }).join('')+`</div>`;
+  if(R.misclassified&&R.misclassified.length) h+=`<h2>Reviews the models got wrong</h2>`+tbl(R.misclassified,[['Model','Model'],['True_label','True'],['Predicted','Predicted'],['Rating','Rating'],['Review','Review']]);
+  out.innerHTML=h;
+}
+
+/* ---------- tests ---------- */
+function testRows(){ return TEST_CASES.map(([t,e])=>[t,e,...engine.models.map(m=>title(engine.score(m,t).label))]); }
+function renderTests(){
+  $('#tests-out').innerHTML=`<table><tr><th>Test review</th><th>Expected</th>${engine.models.map(m=>`<th>${esc(m)}</th>`).join('')}</tr>${testRows().map(r=>`<tr>${r.map((c,i)=>`<td>${i>1?`<span class="pill ${c.toLowerCase()}">${c}</span>`:esc(c)}</td>`).join('')}</tr>`).join('')}</table>`;
+}
+$('#dl-tests').onclick=()=>download('prototype_test_cases.csv',toCSV(['Test review','Expected',...engine.models],testRows()));
+
+
+/* ---------- feedback (usability survey) ---------- */
+const FB_ITEMS=[['ease','Ease of use','The tool was easy to use without help.'],
+ ['clarity','Clarity of results','The verdict and probabilities were clear to me.'],
+ ['useful','Usefulness','The summary by drug helps me understand patient opinion.'],
+ ['transparency','Transparency','The shaded words helped me understand the verdict.'],
+ ['speed','Speed','The tool responded quickly.'],
+ ['satisfaction','Satisfaction','Overall, I am satisfied with the tool.']];
+(function buildFeedback(){
+  const t=$('#fb-table');
+  t.innerHTML='<tr><th>Statement</th>'+[1,2,3,4,5].map(n=>`<th>${n}</th>`).join('')+'</tr>'+
+   FB_ITEMS.map(([k,name,s])=>`<tr><td><b>${esc(name)}.</b> ${esc(s)}</td>`+[1,2,3,4,5].map(n=>`<td><input type="radio" name="fb_${k}" value="${n}" aria-label="${esc(name)}: ${n} of 5"></td>`).join('')+'</tr>').join('');
+})();
+async function sendFeedback(data){
+  const body=new URLSearchParams({'form-name':'feedback','bot-field':'',...data}).toString();
+  const r=await fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+}
+$('#fb-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const role=$('#fb-role').value, data={role};
+  const missing=FB_ITEMS.filter(([k])=>!document.querySelector(`input[name=fb_${k}]:checked`));
+  if(!role||missing.length){ $('#fb-msg').textContent=!role?'Please choose who you are.':`Please rate: ${missing.map(m=>m[1]).join(', ')}.`; return; }
+  FB_ITEMS.forEach(([k])=>data[k]=document.querySelector(`input[name=fb_${k}]:checked`).value);
+  data.comment=$('#fb-comment').value.trim().slice(0,600);
+  data.model_in_use=usingDemo?'preview':'trained';
+  $('#fb-msg').textContent=''; $('#fb-send').disabled=true;
+  const backup='FEEDBACK '+Object.entries(data).map(([k,v])=>`${k}=${String(v).replace(/[\r\n|]+/g,' ')}`).join(' | ');
+  $('#fb-backup').value=backup; $('#fb-ok').hidden=true; $('#fb-err').hidden=true;
+  try{ await sendFeedback(data); $('#fb-ok').hidden=false; $('#fb-form').reset(); }
+  catch(err){ $('#fb-err').hidden=false; }
+  $('#fb-send').disabled=false;
+});
+$('#fb-copy').onclick=async()=>{ const ta=$('#fb-backup'); ta.select(); try{ await navigator.clipboard.writeText(ta.value); $('#fb-copy').textContent='Copied'; }catch(e){ document.execCommand&&document.execCommand('copy'); $('#fb-copy').textContent='Copied'; } };
+
+/* ---------- start-up: your bundle if it sits beside this page, else the preview model ---------- */
+$('#load-btn').onclick=()=>$('#bundle-file').click();
+$('#bundle-file').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=()=>{ try{ useBundle(JSON.parse(rd.result),false); }catch(err){ alert('That file is not a valid web_bundle.json'); } }; rd.readAsText(f); };
+(async function start(){
+  try{ const r=await fetch('web_bundle.json',{cache:'no-store'}); if(r.ok){ useBundle(await r.json(),false); return; } }catch(e){}
+  useBundle(JSON.parse($('#demo-bundle').textContent),true);
+})();
+</script>
+</body>
+</html>
